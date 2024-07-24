@@ -6,9 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
-import java.util.ArrayDeque;
-import java.util.Collection;
-import java.util.Iterator;
+import java.util.*;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -175,7 +173,7 @@ public class RemoteSession {
 			// world.getBlock
 			if (c.equals("world.getBlock")) {
 				Location loc = parseRelativeBlockLocation(args[0], args[1], args[2]);
-				send(world.getBlockTypeIdAt(loc));
+				send(world.getBlockAt(loc).getType().name());
 				
 			// world.getBlocks
 			} else if (c.equals("world.getBlocks")) {
@@ -186,7 +184,7 @@ public class RemoteSession {
 			// world.getBlockWithData
 			} else if (c.equals("world.getBlockWithData")) {
 				Location loc = parseRelativeBlockLocation(args[0], args[1], args[2]);
-				send(world.getBlockTypeIdAt(loc) + "," + world.getBlockAt(loc).getData());
+				send(world.getBlockAt(loc).getType().getId() + "," + world.getBlockAt(loc).getData());
 				
 			// world.setBlock
 			} else if (c.equals("world.setBlock")) {
@@ -243,7 +241,17 @@ public class RemoteSession {
 			} else if (c.equals("world.getEntities")) {
 				int entityType = Integer.parseInt(args[0]);
 				send(getEntities(world, entityType));
-				
+
+			// world.getEntity
+			} else if (c.equals("world.getEntity")) {
+				for (Entity e : world.getEntities()) {
+					if (e.getEntityId() == Integer.parseInt(args[0]))
+					{
+						send(getEntityMsg(e));
+						break;
+					}
+				}
+
 			// world.removeEntity
 			} else if (c.equals("world.removeEntity")) {
 				int result = 0;
@@ -582,16 +590,22 @@ public class RemoteSession {
 
 				send(removeEntities(world, entityId, distance, entityType));
 				
+			// entity.get
+			} else if (c.equals("entity.get")) {
+				int entityId = Integer.parseInt(args[0]);
+				Entity entity = plugin.getEntity(entityId);
+				send(getEntityMsg(entity));
+
 			// world.setSign
 			} else if (c.equals("world.setSign")) {
-				Location loc = parseRelativeBlockLocation(args[0], args[1], args[2]);
+				/*Location loc = parseRelativeBlockLocation(args[0], args[1], args[2]);
 				Block thisBlock = world.getBlockAt(loc);
 				//blockType should be 68 for wall sign or 63 for standing sign
 				int blockType = Integer.parseInt(args[3]);	
 				//facing direction for wall sign : 2=north, 3=south, 4=west, 5=east
 				//rotation 0 - to 15 for standing sign : 0=south, 4=west, 8=north, 12=east
 				byte blockData = Byte.parseByte(args[4]); 
-				if ((thisBlock.getTypeId() != blockType) || (thisBlock.getData() != blockData)) {
+				if ((thisBlock.getType().getId() != blockType) || (thisBlock.getData() != blockData)) {
 					thisBlock.setTypeIdAndData(blockType, blockData, true);
 				}
 				//plugin.getLogger().info("Creating sign at " + loc);
@@ -601,8 +615,8 @@ public class RemoteSession {
 						sign.setLine(i-5, args[i]);
 					}
 					sign.update();
-				}
-			
+				}*/
+				send("TBD: not implement yet...");
 			// world.spawnEntity
 			} else if (c.equals("world.spawnEntity")) {
 				Location loc = parseRelativeBlockLocation(args[0], args[1], args[2]);
@@ -672,7 +686,7 @@ public class RemoteSession {
 		for (int y = minY; y <= maxY; ++y) {
 			 for (int x = minX; x <= maxX; ++x) {
 				 for (int z = minZ; z <= maxZ; ++z) {
-					blockData.append(new Integer(world.getBlockTypeIdAt(x, y, z)).toString() + ",");
+					blockData.append(new Integer(world.getBlockAt(x, y, z).getType().name()).toString() + ",");
 				}
 			}
 		}
@@ -693,8 +707,9 @@ public class RemoteSession {
 	
 	private void updateBlock(Block thisBlock, int blockType, byte blockData) {
 		// check to see if the block is different - otherwise leave it 
-		if ((thisBlock.getTypeId() != blockType) || (thisBlock.getData() != blockData)) {
-			thisBlock.setTypeIdAndData(blockType, blockData, true);
+		if ((thisBlock.getType().getId() != blockType) || (thisBlock.getData() != blockData)) {
+			///thisBlock.setTypeIdAndData(blockType, blockData, true);
+			///TBD ...
 		}
 	}
 	
@@ -787,44 +802,43 @@ public class RemoteSession {
 	}
 
 	private String getEntities(World world, int entityType) {
-		StringBuilder bdr = new StringBuilder();				
+		List<String> bdr = new ArrayList<>();
 		for (Entity e : world.getEntities()) {
 			if (((entityType == -1 && e.getType().getTypeId() >= 0) || e.getType().getTypeId() == entityType) && 
 				e.getType().isSpawnable()) {
-				bdr.append(getEntityMsg(e));
+				bdr.add(getEntityMsg(e));
 			}
 		}
-		return bdr.toString();
+		return String.join("|", bdr);
 	}
 	
 	private String getEntities(World world, int entityId, int distance, int entityType) {
 		Entity playerEntity = plugin.getEntity(entityId);
-		StringBuilder bdr = new StringBuilder();
+		List<String> bdr = new ArrayList<>();
 		for (Entity e : world.getEntities()) {
 			if (((entityType == -1 && e.getType().getTypeId() >= 0) || e.getType().getTypeId() == entityType) && 
 				e.getType().isSpawnable() && 
 				getDistance(playerEntity, e) <= distance) {
-				bdr.append(getEntityMsg(e));
+				bdr.add(getEntityMsg(e));
 			}
 		}
-		return bdr.toString();
+
+		return String.join("|", bdr);
 	}
 
 	private String getEntityMsg(Entity entity) {
-		StringBuilder bdr = new StringBuilder();
-		bdr.append(entity.getEntityId());
-		bdr.append(",");
-		bdr.append(entity.getType().getTypeId());
-		bdr.append(",");
-		bdr.append(entity.getType().toString());
-		bdr.append(",");
-		bdr.append(entity.getLocation().getX());
-		bdr.append(",");
-		bdr.append(entity.getLocation().getY());
-		bdr.append(",");
-		bdr.append(entity.getLocation().getZ());
-		bdr.append("|");
-		return bdr.toString();
+		List<String> bdr = new ArrayList<>();
+		bdr.add(String.valueOf(entity.getEntityId()));
+		bdr.add(String.valueOf(entity.getType().getTypeId()));
+		bdr.add(entity.getType().name());
+		bdr.add(String.valueOf(entity.getLocation().getX()));
+		bdr.add(String.valueOf(entity.getLocation().getY()));
+		bdr.add(String.valueOf(entity.getLocation().getZ()));
+		bdr.add(String.valueOf(entity.getUniqueId()));
+		bdr.add(entity.getCustomName());
+		bdr.add(entity.isDead()?"1":"0");
+		bdr.add(entity.isOnGround()?"1":"0");
+		return String.join(",", bdr);
 	}
 
 	private int removeEntities(World world, int entityId, int distance, int entityType) {

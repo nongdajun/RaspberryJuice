@@ -19,7 +19,8 @@ class Entity:
         return iter((self.id,))
 
     def __repr__(self):
-        return 'Entity(%d)'%(self.id)
+        return ('Entity(eid=%d, type=(%d, %s), pos=(%f, %f, %f), name="%s", dead=%d, ground=%d)'
+                % (self.eid, self.id, self.name, self.x, self.y, self.z, self.customName, self.isDead, self.isOnGround))
 
 EXPERIENCE_ORB = Entity(2, "EXPERIENCE_ORB")
 AREA_EFFECT_CLOUD = Entity(3, "AREA_EFFECT_CLOUD")
@@ -100,3 +101,17 @@ LLAMA_SPIT = Entity(104, "LLAMA_SPIT")
 PARROT = Entity(105, "PARROT")
 VILLAGER = Entity(120, "VILLAGER")
 ENDER_CRYSTAL = Entity(200, "ENDER_CRYSTAL")
+
+
+def parseEntityStr(s: str):
+    a = s.split(",")
+    c = Entity(int(a[1]), a[2])
+    setattr(c, "eid", int(a[0]))
+    setattr(c, "x", float(a[3]))
+    setattr(c, "y", float(a[4]))
+    setattr(c, "z", float(a[5]))
+    setattr(c, "uuid", a[6])
+    setattr(c, "customName", a[7])
+    setattr(c, "isDead", int(a[8]))
+    setattr(c, "isOnGround", int(a[9]))
+    return c
